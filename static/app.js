@@ -89,7 +89,7 @@ function board(rows) {
 
 function podium() {
   const controls = screen === 'host'
-    ? `<div class="stage-actions"><button class="primary" onclick="emit('restart')">重設遊戲</button><button class="secondary" onclick="emit('reset')">建立新房間</button></div>`
+    ? `<div class="stage-actions"><button class="primary" onclick="emit('reset')">重設遊戲</button></div>`
     : '';
   layout(`<div class="card final-card">${board(state.standings)}${controls}</div>`, 'play-shell');
 }
