@@ -88,7 +88,10 @@ function board(rows) {
 }
 
 function podium() {
-  layout(`<div class="card final-card">${board(state.standings)}</div>`, 'play-shell');
+  const controls = screen === 'host'
+    ? `<div class="stage-actions"><button class="primary" onclick="emit('restart')">重設遊戲</button><button class="secondary" onclick="emit('reset')">建立新房間</button></div>`
+    : '';
+  layout(`<div class="card final-card">${board(state.standings)}${controls}</div>`, 'play-shell');
 }
 
 function receive(message) {
