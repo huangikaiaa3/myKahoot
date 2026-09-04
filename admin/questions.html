@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>題庫管理｜火花問答</title>
+    <style>
+      :root { color: #121b3a; font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; background: #edf1ff; }
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      main { width: min(920px, calc(100% - 32px)); margin: 40px auto; }
+      h1 { margin: 0; font-size: clamp(2rem, 7vw, 3.5rem); letter-spacing: -.06em; }
+      .subtitle { margin: 10px 0 28px; color: #52607f; }
+      .question { margin: 18px 0; padding: 24px; background: #fff; border-radius: 16px; box-shadow: 0 5px 0 #cbd3ed; }
+      .question-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 16px; }
+      label { display: grid; gap: 7px; margin-top: 14px; color: #465374; font-size: .82rem; font-weight: 700; }
+      input, textarea, select, button { font: inherit; }
+      input, textarea, select { width: 100%; padding: 11px; border: 1px solid #bcc7e4; border-radius: 9px; background: #fff; color: #121b3a; }
+      textarea { min-height: 72px; resize: vertical; }
+      .answers { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .settings { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+      button { cursor: pointer; border: 0; border-radius: 10px; padding: 12px 16px; font-weight: 700; }
+      .primary { color: #fff; background: #7255db; }.secondary { color: #121b3a; background: #dfe6fa; }.danger { color: #9b2830; background: #ffe2e3; }
+      #message { min-height: 24px; margin-top: 16px; font-weight: 700; }.error { color: #b4232a; }.success { color: #167a55; }
+      @media (max-width: 600px) { main { width: min(100% - 24px, 920px); margin: 24px auto; }.answers, .settings { grid-template-columns: 1fr; }.question { padding: 18px; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>題庫管理</h1>
+      <p class="subtitle">儲存後會立即寫入伺服器。遊戲進行時無法修改題目。</p>
+      <form id="questions-form">
+        <div id="questions"></div>
+        <div class="actions">
+          <button type="button" class="secondary" id="add-question">新增題目</button>
+          <button type="submit" class="primary">儲存變更</button>
+        </div>
+      </form>
+      <div id="message" role="status"></div>
+    </main>
+    <template id="question-template">
+      <section class="question">
+        <div class="question-head"><strong class="question-number"></strong><button type="button" class="danger remove-question">刪除此題</button></div>
+        <label>題目<textarea class="prompt" required></textarea></label>
+        <div class="answers">
+          <label>選項 1<input class="answer" required></label>
+          <label>選項 2<input class="answer" required></label>
+          <label>選項 3<input class="answer" required></label>
+          <label>選項 4<input class="answer" required></label>
+        </div>
+        <div class="settings">
+          <label>正確答案<select class="correct"><option value="0">選項 1</option><option value="1">選項 2</option><option value="2">選項 3</option><option value="3">選項 4</option></select></label>
+          <label>作答時間（秒）<input class="time-limit" type="number" min="5" max="120" required></label>
+        </div>
+      </section>
+    </template>
+    <script>
+      const questionsRoot = document.querySelector('#questions');
+      const template = document.querySelector('#question-template');
+      const message = document.querySelector('#message');
+
+      function showMessage(text, kind = '') {
+        message.textContent = text;
+        message.className = kind;
+      }
+
+      function renumber() {
+        document.querySelectorAll('.question').forEach((question, index) => {
+          question.querySelector('.question-number').textContent = `第 ${index + 1} 題`;
+        });
+      }
+
+      function addQuestion(question = { prompt: '', answers: ['', '', '', ''], correct: 0, time_limit: 20 }) {
+        const element = template.content.firstElementChild.cloneNode(true);
+        element.querySelector('.prompt').value = question.prompt;
+        element.querySelectorAll('.answer').forEach((input, index) => { input.value = question.answers[index] || ''; });
+        element.querySelector('.correct').value = question.correct;
+        element.querySelector('.time-limit').value = question.time_limit;
+        element.querySelector('.remove-question').addEventListener('click', () => { element.remove(); renumber(); });
+        questionsRoot.append(element);
+        renumber();
+      }
+
+      function readQuestions() {
+        return [...document.querySelectorAll('.question')].map((question) => ({
+          prompt: question.querySelector('.prompt').value,
+          answers: [...question.querySelectorAll('.answer')].map((input) => input.value),
+          correct: Number(question.querySelector('.correct').value),
+          time_limit: Number(question.querySelector('.time-limit').value),
+        }));
+      }
+
+      async function loadQuestions() {
+        const response = await fetch('/api/questions');
+        if (!response.ok) throw new Error('無法載入題庫。');
+        const { questions } = await response.json();
+        questions.forEach(addQuestion);
+      }
+
+      document.querySelector('#add-question').addEventListener('click', () => addQuestion());
+      document.querySelector('#questions-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        showMessage('正在儲存…');
+        const response = await fetch('/api/questions', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ questions: readQuestions() }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) { showMessage(data.detail || '儲存失敗。', 'error'); return; }
+        showMessage('題庫已儲存。', 'success');
+      });
+
+      loadQuestions().catch((error) => showMessage(error.message, 'error'));
+    </script>
+  </body>
+</html>
