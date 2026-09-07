@@ -48,9 +48,13 @@ function home() {
   layout(`<div class="card"><div class="eyebrow">即時問答</div><h2 class="title">準備好展現你的實力了嗎？</h2><p class="muted">用手機加入房間，快速作答，爭取高分。</p><div class="host-tools"><button class="primary" onclick="joinForm()">加入遊戲</button><button class="secondary" onclick="host()">主持人控制台</button></div></div>`);
 }
 
-function joinForm() {
+function joinForm(qrPin = '') {
   screen = 'join';
-  layout(`<div class="card"><div class="eyebrow">玩家加入</div><h2 class="title">準備好了嗎？</h2><form class="form" onsubmit="join(event)"><label>遊戲代碼<input required inputmode="numeric" name="pin" maxlength="6" placeholder="000000"></label><label>你的名稱<input required name="name" maxlength="24" placeholder="王小明"></label><button class="primary">進入遊戲</button></form><div id="notice"></div></div>`);
+  const pinField = qrPin
+    ? `<input type="hidden" name="pin" value="${escapeHtml(qrPin)}">`
+    : `<label>遊戲代碼<input required inputmode="numeric" name="pin" maxlength="6" placeholder="000000"></label>`;
+  const subtitle = qrPin ? '輸入名稱即可加入遊戲。' : '準備好了嗎？';
+  layout(`<div class="card"><div class="eyebrow">玩家加入</div><h2 class="title">${subtitle}</h2><form class="form" onsubmit="join(event)">${pinField}<label>你的名稱<input required name="name" maxlength="24" placeholder="王小明" autofocus></label><button class="primary">進入遊戲</button></form><div id="notice"></div></div>`);
 }
 
 function join(event) {
@@ -66,7 +70,7 @@ function host() {
 }
 
 function hostView() {
-  const qrUrl = encodeURIComponent(location.origin);
+  const qrUrl = encodeURIComponent(`${location.origin}/?join=${state.pin}`);
   if (state.phase === 'lobby') {
     layout(`<div class="card host-lobby"><div class="eyebrow">遊戲大廳</div><div class="host-lobby-grid"><div><h2 class="title">使用遊戲代碼加入</h2><div class="pin">${state.pin}</div><span class="player-count">已有 ${state.players} 名玩家就緒</span></div><img class="qr" src="/join-qr.svg?url=${qrUrl}" alt="加入遊戲的二維碼"></div><div class="host-tools"><button class="primary" onclick="emit('next')">開始遊戲</button><button class="secondary" onclick="emit('reset')">建立新房間</button></div></div>`, 'host-play-shell');
     return;
@@ -170,4 +174,6 @@ function receive(message) {
 }
 
 connect();
-home();
+const qrPin = new URLSearchParams(location.search).get('join');
+if (/^\d{6}$/.test(qrPin || '')) joinForm(qrPin);
+else home();
