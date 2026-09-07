@@ -46,7 +46,7 @@ function optionTiles(answers, className, selected = null, disabled = false, corr
 
 function home() {
   screen = 'home';
-  layout(`<div class="card"><div class="eyebrow">即時問答</div><h2 class="title">一起認識新人的快問快答，有獎！</h2><p class="muted">用手機加入房間，快速作答，爭取高分。</p><div class="host-tools"><button class="primary" onclick="joinForm()">加入遊戲</button><button class="secondary" onclick="host()">主持人控制台</button></div></div>`);
+  layout(`<div class="card welcome-card"><h2 class="title welcome-title">一起認識新人的快問快答，<span>有獎</span>！</h2><p class="muted">用手機加入房間，快速作答，爭取高分。</p><div class="host-tools"><button class="primary" onclick="joinForm()">加入遊戲</button><button class="secondary" onclick="host()">主持人控制台</button></div></div>`, 'welcome-shell');
 }
 
 function joinForm(qrPin = '') {
