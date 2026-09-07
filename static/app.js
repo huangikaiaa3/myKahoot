@@ -83,7 +83,7 @@ function hostView() {
     ? `<button class="secondary" onclick="emit('reveal')">立刻公布答案</button>`
     : `<button class="primary" onclick="emit('next')">${state.question_index + 1 === state.total ? '顯示最終排行榜' : '下一題'}</button>`;
   const extras = state.phase === 'reveal' ? revealExtras() : '';
-  const revealClass = state.phase === 'reveal' ? 'stage-reveal' : '';
+  const revealClass = state.phase === 'reveal' && state.image_urls?.length ? 'stage-reveal' : '';
   layout(`<div class="card stage ${rankings ? 'stage-with-leaderboard' : ''} ${revealClass}">${rankings}<main class="stage-main"><div class="stage-top"><span>第 ${state.index + 1} / ${state.total} 題 · ${state.players} 名玩家</span><b class="stage-timer">${state.remaining ?? state.time_limit}</b></div><p class="host-question">${state.prompt}</p><div class="host-choices">${optionTiles(state.answers, 'host-choice', null, false, state.phase === 'reveal' ? state.correct : null)}</div>${extras}<div class="stage-actions">${action}</div></main></div>`, 'host-play-shell');
 }
 
