@@ -38,10 +38,10 @@ function revealExtras() {
   return images || description ? `<div class="reveal-extras">${images ? `<div class="reveal-images image-count-${imageUrls.length}">${images}</div>` : ''}${description}</div>` : '';
 }
 
-function optionTiles(answers, className, selected = null, disabled = false, correct = null) {
+function optionTiles(answers, className, selected = null, disabled = false, correct = null, reveal = false) {
   const marks = ['▲', '◆', '●', '■'];
   const tag = className === 'choice' ? 'button' : 'div';
-  return answers.map((answer, index) => `<${tag} class="${className} tone-${index % 4} ${selected === index ? 'selected' : ''} ${correct === index ? 'is-correct' : ''}" ${className === 'choice' && disabled ? 'disabled' : ''} ${className === 'choice' ? `onclick="answer(${index})"` : ''}><span class="answer-shape">${marks[index] || index + 1}</span><span>${answer}</span></${tag}>`).join('');
+  return answers.map((answer, index) => `<${tag} class="${className} tone-${index % 4} ${selected === index ? 'selected' : ''} ${correct === index ? 'is-correct' : ''} ${reveal && correct !== index ? 'is-muted' : ''}" ${className === 'choice' && disabled ? 'disabled' : ''} ${className === 'choice' ? `onclick="answer(${index})"` : ''}><span class="answer-shape">${marks[index] || index + 1}</span><span>${answer}</span></${tag}>`).join('');
 }
 
 function home() {
@@ -75,7 +75,7 @@ function host() {
 function hostView() {
   const qrUrl = encodeURIComponent(`${location.origin}/?join=${state.pin}`);
   if (state.phase === 'lobby') {
-    layout(`<div class="card host-lobby"><div class="eyebrow">遊戲大廳</div><div class="host-lobby-grid"><div><h2 class="title">使用遊戲代碼加入</h2><div class="pin">${state.pin}</div><span class="player-count">已有 ${state.players} 名玩家就緒</span></div><img class="qr" src="/join-qr.svg?url=${qrUrl}" alt="加入遊戲的二維碼"></div><div class="host-tools"><button class="primary" onclick="emit('next')">開始遊戲</button><button class="secondary" onclick="emit('reset')">建立新房間</button></div></div>`, 'host-play-shell');
+    layout(`<div class="card host-lobby"><div><div class="eyebrow">遊戲大廳</div><h2 class="title">掃描 QR Code 加入遊戲</h2><span class="player-count">已有 ${state.players} 名玩家就緒</span></div><div class="host-lobby-qr"><img class="qr" src="/join-qr.svg?url=${qrUrl}" alt="掃描後加入遊戲的二維碼"></div><div class="host-tools"><button class="primary" onclick="emit('next')">開始遊戲</button><button class="secondary" onclick="emit('reset')">建立新房間</button></div></div>`, 'host-play-shell');
     return;
   }
   const rankings = state.phase === 'reveal' && state.standings?.length ? `<aside class="host-sidebar"><div class="eyebrow">目前排行榜</div><div class="leaderboard-scroll">${board(state.standings)}</div></aside>` : '';
@@ -84,7 +84,7 @@ function hostView() {
     : `<button class="primary" onclick="emit('next')">${state.question_index + 1 === state.total ? '顯示最終排行榜' : '下一題'}</button>`;
   const extras = state.phase === 'reveal' ? revealExtras() : '';
   const revealClass = state.phase === 'reveal' && state.image_urls?.length ? 'stage-reveal' : '';
-  layout(`<div class="card stage ${rankings ? 'stage-with-leaderboard' : ''} ${revealClass}">${rankings}<main class="stage-main"><div class="stage-top"><span>第 ${state.index + 1} / ${state.total} 題 · ${state.players} 名玩家</span><b class="stage-timer">${state.remaining ?? state.time_limit}</b></div><p class="host-question">${state.prompt}</p><div class="host-choices">${optionTiles(state.answers, 'host-choice', null, false, state.phase === 'reveal' ? state.correct : null)}</div>${extras}<div class="stage-actions">${action}</div></main></div>`, 'host-play-shell');
+  layout(`<div class="card stage ${rankings ? 'stage-with-leaderboard' : ''} ${revealClass}">${rankings}<main class="stage-main"><div class="stage-top"><span>第 ${state.index + 1} / ${state.total} 題 · ${state.players} 名玩家</span><b class="stage-timer">${state.remaining ?? state.time_limit}</b></div><p class="host-question">${state.prompt}</p><div class="host-choices">${optionTiles(state.answers, 'host-choice', null, false, state.phase === 'reveal' ? state.correct : null, state.phase === 'reveal')}</div>${extras}<div class="stage-actions">${action}</div></main></div>`, 'host-play-shell');
 }
 
 function playerLobby() {
