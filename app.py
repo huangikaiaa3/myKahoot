@@ -38,6 +38,7 @@ class QuestionInput(BaseModel):
     correct: int
     time_limit: int
     description: str | None = None
+    image_urls: list[str] | None = None
     image_url: str | None = None
 
 
@@ -55,7 +56,13 @@ def validate_questions(questions: list[dict[str, Any]]) -> list[dict[str, Any]]:
         correct = question.get("correct")
         time_limit = question.get("time_limit")
         description = str(question.get("description") or "").strip()
-        image_url = str(question.get("image_url") or "").strip()
+        raw_image_urls = question.get("image_urls")
+        if raw_image_urls is None:
+            legacy_image_url = str(question.get("image_url") or "").strip()
+            raw_image_urls = [legacy_image_url] if legacy_image_url else []
+        if not isinstance(raw_image_urls, list):
+            raise ValueError(f"第 {index} 題的圖片設定無效。")
+        image_urls = [str(image_url).strip() for image_url in raw_image_urls if str(image_url).strip()]
         if not prompt or len(answers) < 2 or any(not answer for answer in answers):
             raise ValueError(f"第 {index} 題需要題目與至少兩個完整選項。")
         if not isinstance(correct, int) or correct not in range(len(answers)):
@@ -64,7 +71,9 @@ def validate_questions(questions: list[dict[str, Any]]) -> list[dict[str, Any]]:
             raise ValueError(f"第 {index} 題的作答時間必須介於 5 到 120 秒。")
         if len(description) > 1_000:
             raise ValueError(f"第 {index} 題的說明不可超過 1000 個字。")
-        if image_url and not QUESTION_IMAGE_URL_PATTERN.fullmatch(image_url):
+        if len(image_urls) > 2:
+            raise ValueError(f"第 {index} 題最多可設定兩張圖片。")
+        if any(not QUESTION_IMAGE_URL_PATTERN.fullmatch(image_url) for image_url in image_urls):
             raise ValueError(f"第 {index} 題的圖片網址無效。")
         validated.append({
             "prompt": prompt,
@@ -72,7 +81,7 @@ def validate_questions(questions: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "correct": correct,
             "time_limit": time_limit,
             **({"description": description} if description else {}),
-            **({"image_url": image_url} if image_url else {}),
+            **({"image_urls": image_urls} if image_urls else {}),
         })
     return validated
 
@@ -203,7 +212,7 @@ async def host_status() -> None:
             question = QUIZ[game.question_index]
             payload["current_question"].update({
                 "description": question.get("description"),
-                "image_url": question.get("image_url"),
+                "image_urls": question.get("image_urls", []),
             })
     await send(game.host, payload)
 
@@ -258,7 +267,7 @@ async def reveal() -> None:
         "type": "reveal",
         "correct": question["correct"],
         "description": question.get("description"),
-        "image_url": question.get("image_url"),
+        "image_urls": question.get("image_urls", []),
         "standings": standings(),
         "answered": answered,
         "players": len(game.players),

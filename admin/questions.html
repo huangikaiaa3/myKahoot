@@ -22,9 +22,11 @@
       .answer-entry-controls { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
       .remove-answer { padding: 9px 12px; }
       .settings { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-      .image-preview { display: grid; grid-template-columns: minmax(0, 180px) auto; align-items: start; gap: 12px; margin-top: 10px; }
+      .image-preview { margin-top: 10px; }
       .image-preview[hidden] { display: none; }
-      .image-preview img { display: block; width: 100%; max-height: 180px; object-fit: contain; border: 1px solid #bcc7e4; border-radius: 9px; background: #f5f7ff; }
+      .image-preview-list { display: grid; grid-template-columns: repeat(2, minmax(0, 180px)); gap: 12px; }
+      .image-preview-item { display: grid; gap: 8px; }
+      .image-preview img { display: block; width: 100%; height: 140px; object-fit: contain; border: 1px solid #bcc7e4; border-radius: 9px; background: #f5f7ff; }
       .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
       button { cursor: pointer; border: 0; border-radius: 10px; padding: 12px 16px; font-weight: 700; }
       .primary { color: #fff; background: #7255db; }.secondary { color: #121b3a; background: #dfe6fa; }.danger { color: #9b2830; background: #ffe2e3; }
@@ -56,8 +58,8 @@
           <label>作答時間（秒）<input class="time-limit" type="number" min="5" max="120" required></label>
         </div>
         <label>答案說明（選填）<textarea class="description" maxlength="1000" placeholder="公布答案時顯示，例如：補充說明或小知識"></textarea></label>
-        <label>公布答案時的圖片（選填）<input class="image-file" type="file" accept="image/jpeg,image/png,image/gif,image/webp"></label>
-        <div class="image-preview" hidden><img class="image-preview-file" alt="公布答案時顯示的圖片預覽"><button type="button" class="secondary remove-image">移除圖片</button></div>
+        <label>公布答案時的圖片（選填，最多兩張）<input class="image-files" type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple></label>
+        <div class="image-preview" hidden><div class="image-preview-list"></div></div>
       </section>
     </template>
     <script>
@@ -119,15 +121,32 @@
         refreshAnswerControls(question);
       }
 
-      function setImagePreview(element, imageUrl = '') {
+      function setImagePreview(element, imageUrls = []) {
         const preview = element.querySelector('.image-preview');
-        const previewImage = element.querySelector('.image-preview-file');
-        element.dataset.imageUrl = imageUrl;
-        preview.hidden = !imageUrl;
-        previewImage.src = imageUrl;
+        const previewList = element.querySelector('.image-preview-list');
+        element.dataset.imageUrls = JSON.stringify(imageUrls);
+        preview.hidden = imageUrls.length === 0;
+        previewList.replaceChildren(...imageUrls.map((imageUrl, index) => {
+          const item = document.createElement('div');
+          item.className = 'image-preview-item';
+          const image = document.createElement('img');
+          image.src = imageUrl;
+          image.alt = `公布答案時顯示的圖片 ${index + 1}`;
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.className = 'secondary';
+          remove.textContent = '移除圖片';
+          remove.addEventListener('click', () => {
+            const currentUrls = JSON.parse(element.dataset.imageUrls || '[]');
+            currentUrls.splice(index, 1);
+            setImagePreview(element, currentUrls);
+          });
+          item.append(image, remove);
+          return item;
+        }));
       }
 
-      function addQuestion(question = { prompt: '', answers: ['', ''], correct: 0, time_limit: 20, description: '', image_url: '' }) {
+      function addQuestion(question = { prompt: '', answers: ['', ''], correct: 0, time_limit: 20, description: '', image_urls: [] }) {
         const element = template.content.firstElementChild.cloneNode(true);
         element.querySelector('.prompt').value = question.prompt;
         (question.answers?.length >= 2 ? question.answers : ['', '']).forEach((answer) => addAnswer(element, answer));
@@ -135,12 +154,8 @@
         refreshAnswerControls(element);
         element.querySelector('.time-limit').value = question.time_limit;
         element.querySelector('.description').value = question.description || '';
-        setImagePreview(element, question.image_url || '');
+        setImagePreview(element, question.image_urls || []);
         element.querySelector('.remove-question').addEventListener('click', () => { element.remove(); renumber(); });
-        element.querySelector('.remove-image').addEventListener('click', () => {
-          element.querySelector('.image-file').value = '';
-          setImagePreview(element);
-        });
         element.querySelector('.add-answer').addEventListener('click', () => addAnswer(element));
         questionsRoot.append(element);
         renumber();
@@ -157,15 +172,19 @@
 
       async function readQuestions() {
         return Promise.all([...document.querySelectorAll('.question')].map(async (question) => {
-          const imageFile = question.querySelector('.image-file').files[0];
-          const imageUrl = imageFile ? await uploadImage(imageFile) : question.dataset.imageUrl;
+          const imageFiles = [...question.querySelector('.image-files').files];
+          const existingImageUrls = JSON.parse(question.dataset.imageUrls || '[]');
+          if (existingImageUrls.length + imageFiles.length > 2) {
+            throw new Error('每一題最多可設定兩張圖片。');
+          }
+          const imageUrls = [...existingImageUrls, ...await Promise.all(imageFiles.map(uploadImage))];
           return {
           prompt: question.querySelector('.prompt').value,
           answers: [...question.querySelectorAll('.answer')].map((input) => input.value),
           correct: Number(question.querySelector('.correct').value),
           time_limit: Number(question.querySelector('.time-limit').value),
           description: question.querySelector('.description').value,
-          image_url: imageUrl || null,
+          image_urls: imageUrls,
           };
         }));
       }
@@ -190,9 +209,9 @@
           const data = await response.json().catch(() => ({}));
           if (!response.ok) { showMessage(data.detail || '儲存失敗。', 'error'); return; }
           document.querySelectorAll('.question').forEach((question) => {
-            const file = question.querySelector('.image-file').files[0];
-            if (file) setImagePreview(question, data.questions[[...document.querySelectorAll('.question')].indexOf(question)].image_url);
-            question.querySelector('.image-file').value = '';
+            const files = question.querySelector('.image-files').files;
+            if (files.length) setImagePreview(question, data.questions[[...document.querySelectorAll('.question')].indexOf(question)].image_urls || []);
+            question.querySelector('.image-files').value = '';
           });
           showMessage('題庫已儲存。', 'success');
         } catch (error) {
