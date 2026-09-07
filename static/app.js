@@ -68,7 +68,7 @@ function host() {
 function hostView() {
   const qrUrl = encodeURIComponent(location.origin);
   if (state.phase === 'lobby') {
-    layout(`<div class="card host-lobby"><div class="eyebrow">遊戲大廳</div><div class="host-lobby-grid"><div><h2 class="title">使用遊戲代碼加入</h2><div class="pin">${state.pin}</div><span class="player-count">已有 ${state.players} 名玩家就緒</span></div><img class="qr" src="/join-qr.svg?url=${qrUrl}" alt="加入遊戲的二維碼"></div><div class="host-tools"><button class="primary" onclick="emit('next')">開始遊戲</button><button class="secondary" onclick="emit('reset')">建立新房間</button></div></div>`);
+    layout(`<div class="card host-lobby"><div class="eyebrow">遊戲大廳</div><div class="host-lobby-grid"><div><h2 class="title">使用遊戲代碼加入</h2><div class="pin">${state.pin}</div><span class="player-count">已有 ${state.players} 名玩家就緒</span></div><img class="qr" src="/join-qr.svg?url=${qrUrl}" alt="加入遊戲的二維碼"></div><div class="host-tools"><button class="primary" onclick="emit('next')">開始遊戲</button><button class="secondary" onclick="emit('reset')">建立新房間</button></div></div>`, 'host-play-shell');
     return;
   }
   const rankings = state.phase === 'reveal' && state.standings?.length ? `<aside class="host-sidebar"><div class="eyebrow">目前排行榜</div><div class="leaderboard-scroll">${board(state.standings)}</div></aside>` : '';
@@ -76,7 +76,7 @@ function hostView() {
     ? `<button class="secondary" onclick="emit('reveal')">立刻公布答案</button>`
     : `<button class="primary" onclick="emit('next')">${state.question_index + 1 === state.total ? '顯示最終排行榜' : '下一題'}</button>`;
   const extras = state.phase === 'reveal' ? revealExtras() : '';
-  layout(`<div class="card stage ${rankings ? 'stage-with-leaderboard' : ''}">${rankings}<main class="stage-main"><div class="stage-top"><span>第 ${state.index + 1} / ${state.total} 題 · ${state.players} 名玩家</span><b class="stage-timer">${state.remaining ?? state.time_limit}</b></div><p class="host-question">${state.prompt}</p><div class="host-choices">${optionTiles(state.answers, 'host-choice', null, false, state.phase === 'reveal' ? state.correct : null)}</div>${extras}<div class="stage-actions">${action}<button class="secondary" onclick="emit('restart')">重新開始</button></div></main></div>`, 'play-shell');
+  layout(`<div class="card stage ${rankings ? 'stage-with-leaderboard' : ''}">${rankings}<main class="stage-main"><div class="stage-top"><span>第 ${state.index + 1} / ${state.total} 題 · ${state.players} 名玩家</span><b class="stage-timer">${state.remaining ?? state.time_limit}</b></div><p class="host-question">${state.prompt}</p><div class="host-choices">${optionTiles(state.answers, 'host-choice', null, false, state.phase === 'reveal' ? state.correct : null)}</div>${extras}<div class="stage-actions">${action}<button class="secondary" onclick="emit('restart')">重新開始</button></div></main></div>`, 'host-play-shell');
 }
 
 function playerLobby() {
