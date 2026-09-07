@@ -1,5 +1,4 @@
 import asyncio
-import copy
 import json
 import os
 import secrets
@@ -22,28 +21,6 @@ ROOT = Path(__file__).parent
 QUESTIONS_PATH = ROOT / "data" / "questions.json"
 ADMIN_PAGE = ROOT / "admin" / "questions.html"
 security = HTTPBasic()
-
-DEFAULT_QUIZ = [
-    {
-        "prompt": "日本的首都是哪裡？",
-        "answers": ["首爾", "東京", "京都", "大阪"],
-        "correct": 1,
-        "time_limit": 20,
-    },
-    {
-        "prompt": "哪一顆行星被稱為紅色星球？",
-        "answers": ["金星", "木星", "火星", "水星"],
-        "correct": 2,
-        "time_limit": 20,
-    },
-    {
-        "prompt": "六邊形有幾條邊？",
-        "answers": ["5", "6", "7", "8"],
-        "correct": 1,
-        "time_limit": 15,
-    },
-]
-
 
 class QuestionInput(BaseModel):
     prompt: str
@@ -81,12 +58,12 @@ def validate_questions(questions: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def load_questions() -> list[dict[str, Any]]:
-    if not QUESTIONS_PATH.exists():
-        return copy.deepcopy(DEFAULT_QUIZ)
     try:
         return validate_questions(json.loads(QUESTIONS_PATH.read_text(encoding="utf-8")))
-    except (OSError, ValueError, json.JSONDecodeError):
-        return copy.deepcopy(DEFAULT_QUIZ)
+    except FileNotFoundError as error:
+        raise RuntimeError(f"找不到題庫檔案：{QUESTIONS_PATH}") from error
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        raise RuntimeError(f"無法載入題庫檔案：{QUESTIONS_PATH}") from error
 
 
 def save_questions(questions: list[dict[str, Any]]) -> None:
