@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import re
 import secrets
 import time
 from io import BytesIO
@@ -9,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import qrcode
-from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, status
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import FileResponse, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
@@ -19,14 +20,25 @@ from qrcode.image.svg import SvgPathImage
 
 ROOT = Path(__file__).parent
 QUESTIONS_PATH = ROOT / "data" / "questions.json"
+QUESTION_IMAGES_PATH = ROOT / "data" / "question-images"
 ADMIN_PAGE = ROOT / "admin" / "questions.html"
 security = HTTPBasic()
+MAX_IMAGE_BYTES = 5 * 1024 * 1024
+IMAGE_TYPES = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+}
+QUESTION_IMAGE_URL_PATTERN = re.compile(r"^/question-images/[A-Za-z0-9_-]+\.(?:jpg|png|gif|webp)$")
 
 class QuestionInput(BaseModel):
     prompt: str
     answers: list[str]
     correct: int
     time_limit: int
+    description: str | None = None
+    image_url: str | None = None
 
 
 class QuestionsInput(BaseModel):
@@ -42,17 +54,25 @@ def validate_questions(questions: list[dict[str, Any]]) -> list[dict[str, Any]]:
         answers = [str(answer).strip() for answer in question.get("answers", [])]
         correct = question.get("correct")
         time_limit = question.get("time_limit")
+        description = str(question.get("description") or "").strip()
+        image_url = str(question.get("image_url") or "").strip()
         if not prompt or len(answers) != 4 or any(not answer for answer in answers):
             raise ValueError(f"第 {index} 題需要題目與四個完整選項。")
         if not isinstance(correct, int) or correct not in range(4):
             raise ValueError(f"第 {index} 題的正確答案設定無效。")
         if not isinstance(time_limit, int) or not 5 <= time_limit <= 120:
             raise ValueError(f"第 {index} 題的作答時間必須介於 5 到 120 秒。")
+        if len(description) > 1_000:
+            raise ValueError(f"第 {index} 題的說明不可超過 1000 個字。")
+        if image_url and not QUESTION_IMAGE_URL_PATTERN.fullmatch(image_url):
+            raise ValueError(f"第 {index} 題的圖片網址無效。")
         validated.append({
             "prompt": prompt,
             "answers": answers,
             "correct": correct,
             "time_limit": time_limit,
+            **({"description": description} if description else {}),
+            **({"image_url": image_url} if image_url else {}),
         })
     return validated
 
@@ -117,6 +137,8 @@ class Game:
 game = Game()
 app = FastAPI(title="火花問答")
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
+QUESTION_IMAGES_PATH.mkdir(parents=True, exist_ok=True)
+app.mount("/question-images", StaticFiles(directory=QUESTION_IMAGES_PATH), name="question-images")
 
 
 @app.middleware("http")
@@ -177,6 +199,12 @@ async def host_status() -> None:
     }
     if game.question_index >= 0:
         payload["current_question"] = question_payload()
+        if game.phase == "reveal":
+            question = QUIZ[game.question_index]
+            payload["current_question"].update({
+                "description": question.get("description"),
+                "image_url": question.get("image_url"),
+            })
     await send(game.host, payload)
 
 
@@ -229,6 +257,8 @@ async def reveal() -> None:
     payload = {
         "type": "reveal",
         "correct": question["correct"],
+        "description": question.get("description"),
+        "image_url": question.get("image_url"),
         "standings": standings(),
         "answered": answered,
         "players": len(game.players),
@@ -280,6 +310,23 @@ async def update_questions(payload: QuestionsInput) -> dict[str, list[dict[str, 
     QUIZ[:] = updated_questions
     save_questions(QUIZ)
     return {"questions": QUIZ}
+
+
+@app.post("/api/question-images", dependencies=[Depends(require_questions_password)])
+async def upload_question_image(image: UploadFile = File(...)) -> dict[str, str]:
+    suffix = IMAGE_TYPES.get(image.content_type or "")
+    if not suffix:
+        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="僅支援 JPG、PNG、GIF 或 WebP 圖片。")
+
+    content = await image.read(MAX_IMAGE_BYTES + 1)
+    if not content:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="請選擇圖片檔案。")
+    if len(content) > MAX_IMAGE_BYTES:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="圖片不可超過 5 MB。")
+
+    filename = f"{secrets.token_urlsafe(18)}{suffix}"
+    (QUESTION_IMAGES_PATH / filename).write_bytes(content)
+    return {"image_url": f"/question-images/{filename}"}
 
 
 @app.get("/join-qr.svg")

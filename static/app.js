@@ -21,6 +21,22 @@ function layout(inner, mode = '') {
   app.innerHTML = `<section class="shell ${mode}"><h1 class="brand">詣翔 <i>&amp;</i> 慈晏</h1>${inner}</section>`;
 }
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>'"]/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
+  }[character]));
+}
+
+function revealExtras() {
+  const image = state.image_url
+    ? `<img class="reveal-image" src="${escapeHtml(state.image_url)}" alt="題目補充圖片">`
+    : '';
+  const description = state.description
+    ? `<p class="reveal-description">${escapeHtml(state.description)}</p>`
+    : '';
+  return image || description ? `<div class="reveal-extras">${image}${description}</div>` : '';
+}
+
 function optionTiles(answers, className, selected = null, disabled = false, correct = null) {
   const marks = ['▲', '◆', '●', '■'];
   const tag = className === 'choice' ? 'button' : 'div';
@@ -59,7 +75,8 @@ function hostView() {
   const action = state.phase === 'question'
     ? `<button class="secondary" onclick="emit('reveal')">立刻公布答案</button>`
     : `<button class="primary" onclick="emit('next')">${state.question_index + 1 === state.total ? '顯示最終排行榜' : '下一題'}</button>`;
-  layout(`<div class="card stage ${rankings ? 'stage-with-leaderboard' : ''}">${rankings}<main class="stage-main"><div class="stage-top"><span>第 ${state.index + 1} / ${state.total} 題 · ${state.players} 名玩家</span><b class="stage-timer">${state.remaining ?? state.time_limit}</b></div><p class="host-question">${state.prompt}</p><div class="host-choices">${optionTiles(state.answers, 'host-choice', null, false, state.phase === 'reveal' ? state.correct : null)}</div><div class="stage-actions">${action}<button class="secondary" onclick="emit('restart')">重新開始</button></div></main></div>`, 'play-shell');
+  const extras = state.phase === 'reveal' ? revealExtras() : '';
+  layout(`<div class="card stage ${rankings ? 'stage-with-leaderboard' : ''}">${rankings}<main class="stage-main"><div class="stage-top"><span>第 ${state.index + 1} / ${state.total} 題 · ${state.players} 名玩家</span><b class="stage-timer">${state.remaining ?? state.time_limit}</b></div><p class="host-question">${state.prompt}</p><div class="host-choices">${optionTiles(state.answers, 'host-choice', null, false, state.phase === 'reveal' ? state.correct : null)}</div>${extras}<div class="stage-actions">${action}<button class="secondary" onclick="emit('restart')">重新開始</button></div></main></div>`, 'play-shell');
 }
 
 function playerLobby() {
@@ -80,7 +97,7 @@ function answer(index) {
 
 function revealView() {
   const result = answerResult ? `<p class="muted">${answerResult.correct ? `本題獲得 ${answerResult.points} 分。` : '本題未獲得分數。'} 總分：${answerResult.total_score} · 目前排名：第 ${answerResult.rank} 名</p>` : '';
-  layout(`<div class="card answer-state"><div><div class="eyebrow">正確答案</div><h2 class="title">${state.prompt}</h2><div class="correct-answer">${state.answers[state.correct]}</div>${result}</div></div>`, 'play-shell');
+  layout(`<div class="card answer-state"><div><div class="eyebrow">正確答案</div><h2 class="title">${state.prompt}</h2><div class="correct-answer">${state.answers[state.correct]}</div>${revealExtras()}${result}</div></div>`, 'play-shell');
 }
 
 function board(rows) {
