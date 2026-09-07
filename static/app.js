@@ -28,13 +28,14 @@ function escapeHtml(value) {
 }
 
 function revealExtras() {
-  const images = (state.image_urls || []).map((imageUrl, index) =>
+  const imageUrls = state.image_urls || [];
+  const images = imageUrls.map((imageUrl, index) =>
     `<img class="reveal-image" src="${escapeHtml(imageUrl)}" alt="題目補充圖片 ${index + 1}">`,
   ).join('');
   const description = state.description
     ? `<p class="reveal-description">${escapeHtml(state.description)}</p>`
     : '';
-  return images || description ? `<div class="reveal-extras">${images ? `<div class="reveal-images">${images}</div>` : ''}${description}</div>` : '';
+  return images || description ? `<div class="reveal-extras">${images ? `<div class="reveal-images image-count-${imageUrls.length}">${images}</div>` : ''}${description}</div>` : '';
 }
 
 function optionTiles(answers, className, selected = null, disabled = false, correct = null) {
