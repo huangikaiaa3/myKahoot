@@ -40,7 +40,7 @@ function revealExtras() {
 function optionTiles(answers, className, selected = null, disabled = false, correct = null) {
   const marks = ['▲', '◆', '●', '■'];
   const tag = className === 'choice' ? 'button' : 'div';
-  return answers.map((answer, index) => `<${tag} class="${className} ${selected === index ? 'selected' : ''} ${correct === index ? 'is-correct' : ''}" ${className === 'choice' && disabled ? 'disabled' : ''} ${className === 'choice' ? `onclick="answer(${index})"` : ''}><span class="answer-shape">${marks[index]}</span><span>${answer}</span></${tag}>`).join('');
+  return answers.map((answer, index) => `<${tag} class="${className} tone-${index % 4} ${selected === index ? 'selected' : ''} ${correct === index ? 'is-correct' : ''}" ${className === 'choice' && disabled ? 'disabled' : ''} ${className === 'choice' ? `onclick="answer(${index})"` : ''}><span class="answer-shape">${marks[index] || index + 1}</span><span>${answer}</span></${tag}>`).join('');
 }
 
 function home() {

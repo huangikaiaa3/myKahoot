@@ -56,9 +56,9 @@ def validate_questions(questions: list[dict[str, Any]]) -> list[dict[str, Any]]:
         time_limit = question.get("time_limit")
         description = str(question.get("description") or "").strip()
         image_url = str(question.get("image_url") or "").strip()
-        if not prompt or len(answers) != 4 or any(not answer for answer in answers):
-            raise ValueError(f"第 {index} 題需要題目與四個完整選項。")
-        if not isinstance(correct, int) or correct not in range(4):
+        if not prompt or len(answers) < 2 or any(not answer for answer in answers):
+            raise ValueError(f"第 {index} 題需要題目與至少兩個完整選項。")
+        if not isinstance(correct, int) or correct not in range(len(answers)):
             raise ValueError(f"第 {index} 題的正確答案設定無效。")
         if not isinstance(time_limit, int) or not 5 <= time_limit <= 120:
             raise ValueError(f"第 {index} 題的作答時間必須介於 5 到 120 秒。")
@@ -381,11 +381,11 @@ async def websocket_endpoint(socket: WebSocket) -> None:
                 if player.answer is not None:
                     continue
                 answer = message.get("answer")
-                if not isinstance(answer, int) or answer not in range(4):
+                question = QUIZ[game.question_index]
+                if not isinstance(answer, int) or answer not in range(len(question["answers"])):
                     continue
                 player.answer = answer
                 player.answered_at = time.time()
-                question = QUIZ[game.question_index]
                 points = 0
                 if answer == question["correct"]:
                     elapsed = player.answered_at - (game.question_started_at or player.answered_at)

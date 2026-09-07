@@ -18,6 +18,9 @@
       input, textarea, select { width: 100%; padding: 11px; border: 1px solid #bcc7e4; border-radius: 9px; background: #fff; color: #121b3a; }
       textarea { min-height: 72px; resize: vertical; }
       .answers { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .answer-entry { display: grid; gap: 7px; color: #465374; font-size: .82rem; font-weight: 700; }
+      .answer-entry-controls { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+      .remove-answer { padding: 9px 12px; }
       .settings { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
       .image-preview { display: grid; grid-template-columns: minmax(0, 180px) auto; align-items: start; gap: 12px; margin-top: 10px; }
       .image-preview[hidden] { display: none; }
@@ -46,14 +49,10 @@
       <section class="question">
         <div class="question-head"><strong class="question-number"></strong><button type="button" class="danger remove-question">刪除此題</button></div>
         <label>題目<textarea class="prompt" required></textarea></label>
-        <div class="answers">
-          <label>選項 1<input class="answer" required></label>
-          <label>選項 2<input class="answer" required></label>
-          <label>選項 3<input class="answer" required></label>
-          <label>選項 4<input class="answer" required></label>
-        </div>
+        <div class="answers"></div>
+        <div class="actions"><button type="button" class="secondary add-answer">新增選項</button></div>
         <div class="settings">
-          <label>正確答案<select class="correct"><option value="0">選項 1</option><option value="1">選項 2</option><option value="2">選項 3</option><option value="3">選項 4</option></select></label>
+          <label>正確答案<select class="correct"></select></label>
           <label>作答時間（秒）<input class="time-limit" type="number" min="5" max="120" required></label>
         </div>
         <label>答案說明（選填）<textarea class="description" maxlength="1000" placeholder="公布答案時顯示，例如：補充說明或小知識"></textarea></label>
@@ -77,6 +76,49 @@
         });
       }
 
+      function refreshAnswerControls(question) {
+        const answers = [...question.querySelectorAll('.answer')];
+        const correct = question.querySelector('.correct');
+        const selected = Math.min(Number(correct.value) || 0, answers.length - 1);
+        answers.forEach((input, index) => {
+          input.closest('.answer-entry').querySelector('.answer-number').textContent = `選項 ${index + 1}`;
+          input.closest('.answer-entry').querySelector('.remove-answer').disabled = answers.length <= 2;
+        });
+        correct.replaceChildren(...answers.map((_, index) => {
+          const option = document.createElement('option');
+          option.value = index;
+          option.textContent = `選項 ${index + 1}`;
+          return option;
+        }));
+        correct.value = String(selected);
+      }
+
+      function addAnswer(question, value = '') {
+        const entry = document.createElement('label');
+        entry.className = 'answer-entry';
+        const number = document.createElement('span');
+        number.className = 'answer-number';
+        const controls = document.createElement('div');
+        controls.className = 'answer-entry-controls';
+        const input = document.createElement('input');
+        input.className = 'answer';
+        input.required = true;
+        input.value = value;
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'danger remove-answer';
+        remove.textContent = '移除';
+        remove.addEventListener('click', () => {
+          if (question.querySelectorAll('.answer').length <= 2) return;
+          entry.remove();
+          refreshAnswerControls(question);
+        });
+        controls.append(input, remove);
+        entry.append(number, controls);
+        question.querySelector('.answers').append(entry);
+        refreshAnswerControls(question);
+      }
+
       function setImagePreview(element, imageUrl = '') {
         const preview = element.querySelector('.image-preview');
         const previewImage = element.querySelector('.image-preview-file');
@@ -85,11 +127,12 @@
         previewImage.src = imageUrl;
       }
 
-      function addQuestion(question = { prompt: '', answers: ['', '', '', ''], correct: 0, time_limit: 20, description: '', image_url: '' }) {
+      function addQuestion(question = { prompt: '', answers: ['', ''], correct: 0, time_limit: 20, description: '', image_url: '' }) {
         const element = template.content.firstElementChild.cloneNode(true);
         element.querySelector('.prompt').value = question.prompt;
-        element.querySelectorAll('.answer').forEach((input, index) => { input.value = question.answers[index] || ''; });
+        (question.answers?.length >= 2 ? question.answers : ['', '']).forEach((answer) => addAnswer(element, answer));
         element.querySelector('.correct').value = question.correct;
+        refreshAnswerControls(element);
         element.querySelector('.time-limit').value = question.time_limit;
         element.querySelector('.description').value = question.description || '';
         setImagePreview(element, question.image_url || '');
@@ -98,6 +141,7 @@
           element.querySelector('.image-file').value = '';
           setImagePreview(element);
         });
+        element.querySelector('.add-answer').addEventListener('click', () => addAnswer(element));
         questionsRoot.append(element);
         renumber();
       }
