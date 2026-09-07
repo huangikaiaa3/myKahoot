@@ -54,7 +54,9 @@ function joinForm(qrPin = '') {
     ? `<input type="hidden" name="pin" value="${escapeHtml(qrPin)}">`
     : `<label>遊戲代碼<input required inputmode="numeric" name="pin" maxlength="6" placeholder="000000"></label>`;
   const subtitle = qrPin ? '輸入名稱即可加入遊戲。' : '準備好了嗎？';
-  layout(`<div class="card"><div class="eyebrow">玩家加入</div><h2 class="title">${subtitle}</h2><form class="form" onsubmit="join(event)">${pinField}<label>你的名稱<input required name="name" maxlength="24" placeholder="王小明" autofocus></label><button class="primary">進入遊戲</button></form><div id="notice"></div></div>`);
+  const qrClass = qrPin ? 'qr-join-card' : '';
+  const eyebrow = qrPin ? '掃描成功' : '玩家加入';
+  layout(`<div class="card ${qrClass}"><div class="eyebrow">${eyebrow}</div><h2 class="title">${subtitle}</h2><form class="form" onsubmit="join(event)">${pinField}<label>你的名稱<input required name="name" maxlength="24" placeholder="請輸入您的名字" autofocus></label><button class="primary">進入遊戲</button></form><div id="notice"></div></div>`, qrPin ? 'qr-join-shell' : '');
 }
 
 function join(event) {
@@ -80,7 +82,8 @@ function hostView() {
     ? `<button class="secondary" onclick="emit('reveal')">立刻公布答案</button>`
     : `<button class="primary" onclick="emit('next')">${state.question_index + 1 === state.total ? '顯示最終排行榜' : '下一題'}</button>`;
   const extras = state.phase === 'reveal' ? revealExtras() : '';
-  layout(`<div class="card stage ${rankings ? 'stage-with-leaderboard' : ''}">${rankings}<main class="stage-main"><div class="stage-top"><span>第 ${state.index + 1} / ${state.total} 題 · ${state.players} 名玩家</span><b class="stage-timer">${state.remaining ?? state.time_limit}</b></div><p class="host-question">${state.prompt}</p><div class="host-choices">${optionTiles(state.answers, 'host-choice', null, false, state.phase === 'reveal' ? state.correct : null)}</div>${extras}<div class="stage-actions">${action}</div></main></div>`, 'host-play-shell');
+  const revealClass = state.phase === 'reveal' ? 'stage-reveal' : '';
+  layout(`<div class="card stage ${rankings ? 'stage-with-leaderboard' : ''} ${revealClass}">${rankings}<main class="stage-main"><div class="stage-top"><span>第 ${state.index + 1} / ${state.total} 題 · ${state.players} 名玩家</span><b class="stage-timer">${state.remaining ?? state.time_limit}</b></div><p class="host-question">${state.prompt}</p><div class="host-choices">${optionTiles(state.answers, 'host-choice', null, false, state.phase === 'reveal' ? state.correct : null)}</div>${extras}<div class="stage-actions">${action}</div></main></div>`, 'host-play-shell');
 }
 
 function playerLobby() {
