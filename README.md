@@ -32,13 +32,21 @@ On EC2, replace the `QUESTIONS_ADMIN_PASSWORD` value in `deploy/spark-quiz.servi
 
 ## Load test
 
-With the server already running, simulate 150 players joining, answering, and receiving the reveal:
+With the server already running, simulate 150 players joining, answering, and receiving a reveal:
 
 ```bash
-python3 tests/load_test.py
+.venv/bin/python tests/load_test.py --url ws://127.0.0.1:8000/ws --players 150
 ```
 
-The test resets the active game first. To test the deployed EC2 instance, replace the endpoint with your public WebSocket URL, for example `python3 tests/load_test.py --url wss://quiz.example.com/ws`.
+The output should report `150/150` for connected players, question broadcasts, answer acknowledgements, and round results. The script resets the game before and after the test, so never run it during a real quiz.
+
+To test the EC2 instance, run the script from your Mac rather than the EC2 server itself. Use the public WebSocket URL:
+
+```bash
+.venv/bin/python tests/load_test.py --url ws://YOUR_EC2_PUBLIC_IP/ws --players 150
+```
+
+If you later configure HTTPS with a domain, use `wss://your-domain/ws` instead.
 
 ## EC2 deployment
 

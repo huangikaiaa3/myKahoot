@@ -44,29 +44,35 @@ async def run(url: str, player_count: int) -> None:
 
         await host.send(json.dumps({"action": "next"}))
         questions = await asyncio.gather(*(receive_type(player, "question") for player in players))
-        correct_answer = 1  # The first sample question's correct answer index.
+        test_answer = 0
 
         answer_started = time.perf_counter()
         await asyncio.gather(*(
-            player.send(json.dumps({"action": "answer", "answer": correct_answer}))
+            player.send(json.dumps({"action": "answer", "answer": test_answer}))
             for player in players
         ))
-        await asyncio.gather(*(receive_type(player, "answer_received") for player in players))
+        acknowledgements = await asyncio.gather(*(receive_type(player, "answer_received") for player in players))
         answer_seconds = time.perf_counter() - answer_started
 
         await host.send(json.dumps({"action": "reveal"}))
         await asyncio.gather(*(receive_type(player, "reveal") for player in players))
         results = await asyncio.gather(*(receive_type(player, "round_result") for player in players))
 
-        successful = sum(result["correct"] for result in results)
         elapsed = time.perf_counter() - started
         print(f"Players connected: {len(players)}/{player_count}")
         print(f"Join time: {join_seconds:.2f}s")
         print(f"Answer round-trip time: {answer_seconds:.2f}s")
         print(f"Question broadcasts received: {len(questions)}/{player_count}")
-        print(f"Correct results received: {successful}/{player_count}")
+        print(f"Answer acknowledgements received: {len(acknowledgements)}/{player_count}")
+        print(f"Round results received: {len(results)}/{player_count}")
         print(f"Total test time: {elapsed:.2f}s")
     finally:
+        # Leave the server in a fresh lobby rather than retaining test players.
+        try:
+            await host.send(json.dumps({"action": "reset"}))
+            await receive_type(host, "host_status")
+        except (OSError, websockets.WebSocketException):
+            pass
         await asyncio.gather(*(player.close() for player in players), return_exceptions=True)
         await host.close()
 
