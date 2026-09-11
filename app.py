@@ -407,8 +407,7 @@ async def websocket_endpoint(socket: WebSocket) -> None:
                 points = 0
                 if answer == question["correct"]:
                     elapsed = player.answered_at - (game.question_started_at or player.answered_at)
-                    speed_bonus = max(0, int((question["time_limit"] - elapsed) * 25))
-                    points = 500 + speed_bonus
+                    points = max(0, 500 - int(elapsed * 10))
                     player.score += points
                 player.question_points = points
                 await send(socket, {"type": "answer_received"})
