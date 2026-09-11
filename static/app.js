@@ -117,10 +117,13 @@ function board(rows) {
 }
 
 function podium() {
+  const personalRank = joined && state.player_rank
+    ? `<section class="personal-rank"><span>你的排名</span><strong>第 ${state.player_rank} 名</strong><small>總分 ${state.player_total_score}</small></section>`
+    : '';
   const controls = screen === 'host'
     ? `<div class="stage-actions"><button class="secondary" onclick="emit('restart')">重新開始</button><button class="primary" onclick="emit('reset')">重設遊戲</button></div>`
     : '';
-  layout(`<div class="card final-card">${board(state.standings)}${controls}</div>`, 'play-shell');
+  layout(`<div class="card final-card">${personalRank}${board(state.standings)}${controls}</div>`, 'play-shell');
 }
 
 function receive(message) {
@@ -136,7 +139,7 @@ function receive(message) {
   if (message.type === 'restarted') {
     selectedAnswer = null;
     answerResult = null;
-    state = { ...state, phase: 'lobby', question_index: -1, remaining: 0 };
+    state = { ...state, phase: 'lobby', question_index: -1, remaining: 0, player_rank: null, player_total_score: null };
     if (joined) playerLobby();
     return;
   }
@@ -173,6 +176,10 @@ function receive(message) {
   if (message.type === 'round_result') {
     answerResult = message;
     if (joined && state.phase === 'reveal') revealView();
+    return;
+  }
+  if (message.type === 'podium_rank') {
+    state = { ...state, player_rank: message.rank, player_total_score: message.total_score };
     return;
   }
   if (message.type === 'podium') {

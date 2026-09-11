@@ -381,6 +381,15 @@ async def websocket_endpoint(socket: WebSocket) -> None:
                     await show_question()
                 elif game.phase == "reveal":
                     game.phase = "podium"
+                    ranked_players = sorted(game.players.values(), key=lambda player: (-player.score, player.name.lower()))
+                    await asyncio.gather(*(
+                        send(player.socket, {
+                            "type": "podium_rank",
+                            "rank": index + 1,
+                            "total_score": player.score,
+                        })
+                        for index, player in enumerate(ranked_players)
+                    ), return_exceptions=True)
                     await broadcast({"type": "podium", "standings": standings()})
                     await host_status()
             elif action == "reveal" and is_host:
